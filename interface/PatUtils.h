@@ -78,8 +78,11 @@ namespace patUtils
    bool passPUJetID(pat::Jet j);
 
    bool exclusiveDataEventFilter(const double&run, const bool& isMC, const bool& isPromptReco);
-
-
+  
+   //Theoretical Uncertainties computation: PDF, Scale Variation and Alpha
+   std::pair<double, double> scaleVariation(const fwlite::Event& ev);
+   double alphaVariation(const fwlite::Event& ev);
+   double pdfVariation(const fwlite::Event& ev);
 
    class MetFilter{
     private :
