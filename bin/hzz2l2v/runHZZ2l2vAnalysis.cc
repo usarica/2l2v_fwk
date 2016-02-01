@@ -10,6 +10,8 @@
 #include "SimDataFormats/PileupSummaryInfo/interface/PileupSummaryInfo.h"
 #include "SimDataFormats/GeneratorProducts/interface/LHEEventProduct.h"
 #include "SimDataFormats/GeneratorProducts/interface/GenEventInfoProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/LesHouches.h"
+#include "SimDataFormats/GeneratorProducts/interface/LHERunInfoProduct.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
 #include "DataFormats/PatCandidates/interface/Muon.h"
 #include "DataFormats/PatCandidates/interface/Electron.h"
@@ -28,6 +30,7 @@
 #include "FWCore/PythonParameterSet/interface/MakeParameterSets.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "PhysicsTools/Utilities/interface/LumiReWeighting.h"
+
 //#include "TauAnalysis/SVfitStandalone/interface/SVfitStandaloneAlgorithm.h" //for svfit
 
 #include "UserCode/llvv_fwk/interface/MacroUtils.h"
@@ -122,12 +125,15 @@ int main(int argc, char* argv[])
   bool runSystematics                        = runProcess.getParameter<bool>("runSystematics");
   std::vector<TString> varNames(1,"");
   if(runSystematics){
-    varNames.push_back("_jerup");    varNames.push_back("_jerdown");
-    varNames.push_back("_jesup");    varNames.push_back("_jesdown");  
-    varNames.push_back("_umetup");   varNames.push_back("_umetdown");  
-    varNames.push_back("_lesup");    varNames.push_back("_lesdown");  
-    varNames.push_back("_puup");     varNames.push_back("_pudown");  
-    varNames.push_back("_btagup");   varNames.push_back("_btagdown");
+    varNames.push_back("_jerup");      varNames.push_back("_jerdown");
+    varNames.push_back("_jesup");      varNames.push_back("_jesdown");  
+    varNames.push_back("_umetup");     varNames.push_back("_umetdown");  
+    varNames.push_back("_lesup");      varNames.push_back("_lesdown");  
+    varNames.push_back("_puup");       varNames.push_back("_pudown");  
+    varNames.push_back("_btagup");     varNames.push_back("_btagdown");
+    varNames.push_back("_uncscaleup"); varNames.push_back("_uncscaledown");
+    varNames.push_back("_pdf");
+    varNames.push_back("_alpha");
     if(isMC_ZZ)             { varNames.push_back("_zzptup");   varNames.push_back("_zzptdown");     }
     if(isMC_WZ)             { varNames.push_back("_wzptup");   varNames.push_back("_wzptdown");     }
     if(isMC_GG || isMC_VBF) { varNames.push_back("_lshapeup"); varNames.push_back("_lshapedown"); }
@@ -554,6 +560,11 @@ int main(int argc, char* argv[])
      TFile* file = TFile::Open(urls[f].c_str() );
      fwlite::Event ev(file);
      printf("Scanning the ntuple %2i/%2i :", (int)f+1, (int)urls.size());
+
+     std::cout << " " << std::endl;
+     std::cout << "/////////////////////////////" << std::endl;
+     std::cout << "/////     New Event     /////" << std::endl;
+     std::cout << "/////////////////////////////" << std::endl;
      int iev=0;
      int treeStep(ev.size()/50);
      for(ev.toBegin(); !ev.atEnd(); ++ev){ iev++;
@@ -732,6 +743,35 @@ int main(int argc, char* argv[])
             }
          }
 
+	/*std::pair<double, double> scaleUncVar = patUtils::scaleVariation(ev);
+        double scaleUpWeight =  scaleUncVar.first;
+	double scaleDwWeight = scaleUncVar.second;
+
+	std::cout << "Cross Check: scaleUncUp => " << scaleUpWeight << "; scaleUncDw => " << scaleDwWeight << std::endl;
+	double alphaWeight = patUtils::alphaVariation(ev);
+	std::cout << "Alpha Weight: " << alphaWeight << std::endl;
+        double pdfWeight   = patUtils::pdfVariation(ev);
+	std::cout << "Pdf Weight: " << pdfWeight << std::endl; */
+	//Introduce Thieroetical Sistematic
+        /*fwlite::Handle<LHEEventProduct> lheEPHandle;
+        lheEPHandle.getByLabel( ev, "externalLHEProducer");
+	double theWeight = 0;
+	double scaleUp = 0.5;
+        double scaleDw = 10.;
+	if( lheEPHandle.isValid() ){
+		//Factorization and Renormalization scale	
+		for (int i=0; i<lheEPHandle->weights().size(); i++) {
+			if( lheEPHandle->weights()[i].id != "1001" || lheEPHandle->weights()[i].id != "1006" || lheEPHandle->weights()[i].id != "1008" ){ 
+				double local_weight = 0;
+				local_weight = ( lheEPHandle->weights()[i].wgt / lheEPHandle->originalXWGTUP() );
+				std::cout << "Local weight: " << local_weight << std::endl;
+				if( local_weight > scaleUp ) scaleUp = local_weight;
+                                if( local_weight < scaleDw ) scaleDw = local_weight;
+			}
+			std::cout << "ScaleUp: " << scaleUp << "; ScaleDown: " << scaleDw << std::endl;
+		}
+
+        }*/
 
          //MC crap for photon studies
          if(photonTrigger && (isWGmc || isZGmc)){
@@ -1235,19 +1275,26 @@ int main(int argc, char* argv[])
               bool varyUmetUp( varNames[ivar]=="_umetup" );
               bool varyUmetDown( varNames[ivar]=="_umetdown" );
               bool varyLesUp( varNames[ivar]=="_lesup" );
-              bool varyLesDown( varNames[ivar]=="_lesdown" );
-                      
+              bool varyLesDown( varNames[ivar]=="_lesdown" );                     
+ 
               //pileup variations
               if(varNames[ivar]=="_puup") iweight *=TotalWeight_plus;
               if(varNames[ivar]=="_pudown") iweight *=TotalWeight_minus;
-              
+
+              //Thoretical Uncertanties: PDF, Alpha and Scale Variation
+              std::pair<double, double> scaleUncVar = patUtils::scaleVariation(ev);
+	      if(varNames[ivar]=="_uncscaleup")    iweight *= scaleUncVar.first;
+	      if(varNames[ivar]=="_uncscaledown")  iweight *= scaleUncVar.second;
+              if(varNames[ivar]=="_alpha")         iweight *= patUtils::alphaVariation(ev);
+              if(varNames[ivar]=="_pdf")           iweight *= patUtils::pdfVariation(ev);           
+ 
               //btag
               bool varyBtagUp( varNames[ivar]=="_btagup" );
               bool varyBtagDown( varNames[ivar]=="_btagdown" );
          
-         			//EwkCorrections variation
-         			if ( varNames[ivar]=="_ewkcorrectionsup")		iweight *= ewkCorrections_up;
-          	  if ( varNames[ivar]=="_ewkcorrectionsdown")	iweight *= ewkCorrections_down;
+              //EwkCorrections variation
+              if ( varNames[ivar]=="_ewkcorrectionsup")		iweight *= ewkCorrections_up;
+              if ( varNames[ivar]=="_ewkcorrectionsdown")	iweight *= ewkCorrections_down;
          
               //Q^2 variations on VV pT spectum
               if( ( (isMC_ZZ && (varNames[ivar]=="_zzptup" || varNames[ivar]=="_zzptdown")) || (isMC_WZ && (varNames[ivar]=="_wzptup" || varNames[ivar]=="_wzptdown") ) ) && vvShapeUnc.size()==2 ){
@@ -1364,7 +1411,7 @@ int main(int argc, char* argv[])
                  if(chTags[ich]=="ll")continue; //save time
                  if(chTags[ich]=="emu" && (isMC_GG || isMC_VBF))continue; //save time 
 
-                TString tags_full=chTags[ich]+evCat; 
+                TString tags_full=chTags[ich]+evCat;  
                 float chWeight(iweight);
 
                 //update weight and mass for photons
