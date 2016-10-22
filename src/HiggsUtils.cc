@@ -1,6 +1,8 @@
 #include "UserCode/llvv_fwk/interface/HiggsUtils.h"
 #include "TGraphErrors.h"
-#include "HiggsAnalysis/CombinedLimit/interface/th1fmorph.h"
+#include "TLorentzVector.h"
+#include "UserCode/llvv_fwk/interface/th1fmorph.h"
+#include "ZZMatrixElement/MELA/interface/Mela.h"
 
 namespace higgs{
 
@@ -249,6 +251,106 @@ namespace higgs{
       Norm = 1.0;
 
       return nrGr;
+   }
+
+   float weightNarrowResonnance_MELA( bool isVBF, double CP, double heavyMass, const reco::GenParticleCollection& gen){
+	
+	//Fill a Map with Mass and Width SM Like
+	double heavyWidth=0; float weight=0;
+
+	std::map< double, double>  SM_Info;
+	SM_Info[200]=1.43;  SM_Info[300]=8.43;  SM_Info[400]=29.3; 
+	SM_Info[500]=68;    SM_Info[600]=123;   SM_Info[700]=199;
+	SM_Info[800]=304;   SM_Info[900]=499;   SM_Info[1000]=647;
+	SM_Info[1500]=1500; SM_Info[2000]=2000; SM_Info[2500]=2500;
+
+	std::map< double, TLorentzVector> Partons;
+	std::map< double, TLorentzVector> Higgs;
+	std::map< double, TLorentzVector> ZBoson;
+	std::map< double, TLorentzVector> FinalState;
+
+	//Loop on Gen_Particles to select 2L2nu final state
+	/*int iter1=0; int iter2=0;
+	for(unsigned int k=0; k<gen.size(); k++){ 
+ 
+	    if( !gen[k].isHardProcess()) continue; 
+	    if( (gen[k].pdgId<7 || gen[k].pdgId==21) && gen[k].status() == 21 ){
+                iter1++;
+                double pdgId=0;
+                if(iter1==1){pdgId=21;}else if(iter1==2){pdgId=-21;}
+                TLorentzVector partons( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
+                Partons[pdgId] = partons;
+		std::cout << "Gluon: " << gen[k].px() << "; " << gen[k].py() << "; " << gen[k].pz() << "; " << gen[k].energy() << std::endl;
+            }else if( gen[k].pdgId() == 25 ){
+		TLorentzVector higgsP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy()); 
+		Higgs[gen[k].pdgId()] = higgsP;	
+	    } else if( abs(gen[k].pdgId()) == 23 ){
+		iter2++;
+		double pdgId=0;
+		if(iter2==1){pdgId=23;}else if(iter2==2){pdgId=-23;}
+		TLorentzVector zbosonP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
+		ZBoson[pdgId] = zbosonP;		
+	    } else if( abs(gen[k].pdgId()) == 11 || abs(gen[k].pdgId()) == 12 || abs(gen[k].pdgId()) == 13 || abs(gen[k].pdgId()) == 14 || abs(gen[k].pdgId()) == 15 || abs(gen[k].pdgId()) == 16 ){
+		TLorentzVector lepP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy()); 
+		FinalState[gen[k].pdgId()] = lepP;
+             std::cout << "Leptons: " << gen[k].px() << "; " << gen[k].py() << "; " << gen[k].pz() << "; " << gen[k].energy() << std::endl;
+	    }
+ 
+	}*/
+
+	std::cout << " " << std::endl;
+	std::cout << "Cprime: " << CP << "; Width: " << SM_Info[heavyMass] << "; Narrow Width: " << SM_Info[heavyMass]*CP*CP << std::endl;
+	heavyWidth = SM_Info[heavyMass]*CP*CP;	
+        TVar::VerbosityLevel verbosity = TVar::DEBUG;
+	std::cout << "MELA: initialization" << std::endl;
+        Mela mela( 13, heavyMass, verbosity); //Mela is initialized (Energy, mPOLE, verobosity) 
+        SimpleParticleCollection_t daughters, mothers; // associated;
+
+	//Loop on particles and fill SimpleParticleCollection_t 
+        for(unsigned int k=0; k<gen.size(); k++){
+
+            if( !gen[k].isHardProcess()) continue;
+            if( (gen[k].pdgId()<7 || gen[k].pdgId()==21) && gen[k].status() == 21 ){
+                TLorentzVector partons( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
+		mothers.push_back( SimpleParticle_t( gen[k].pdgId(), partons)); //Filling Infos
+	    } else if( abs(gen[k].pdgId()) == 11 || abs(gen[k].pdgId()) == 12 || abs(gen[k].pdgId()) == 13 || abs(gen[k].pdgId()) == 14 || abs(gen[k].pdgId()) == 15 || abs(gen[k].pdgId()) == 16 ){
+		TLorentzVector lepP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
+		daughters.push_back( SimpleParticle_t( gen[k].pdgId(), lepP)); //Filling Infos
+	    }
+
+	}
+	
+        /*for(std::map< double, TLorentzVector>::iterator it=Partons.begin(); it!=Partons.end(); ++it){
+                mothers.push_back( SimpleParticle_t( abs(it->first),it->second));
+        }
+
+	for(std::map< double, TLorentzVector>::iterator it=FinalState.begin(); it!=FinalState.end(); ++it){
+		daughters.push_back( SimpleParticle_t(it->first,it->second));
+	}*/
+
+	std::cout <<"MELA: setInputs" << std::endl;
+        mela.setCandidateDecayMode(TVar::CandidateDecay_ZZ); //Mela Candidate mode initialized
+	mela.setInputEvent(&daughters, 0, &mothers, true); 
+	
+	if(!isVBF){
+	    //TVar::bkgZZ=to produce only Bckg, TVar::HSMHiggs=to produce only Signal, TVar::bkgZZ_SMHiggs=to produce both
+	    mela.setProcess( TVar::HSMHiggs, TVar::MCFM, TVar::ZZGG); 
+	}else if(isVBF){
+	    mela.setProcess( TVar::HSMHiggs, TVar::MCFM, TVar::JJVBF);
+	}
+	
+	std::cout << "MELA: set Higgs Mass" << std::endl;
+	mela.setMelaHiggsMassWidth(-1,0,0);
+        mela.setMelaHiggsMassWidth( 125, 4.07e-3, 0); //First resonance Initialization, SM Higgs
+        mela.setMelaHiggsMassWidth( heavyMass, heavyWidth, 0); //Second resonace (heavy one)
+	mela.computeP( weight, false);
+	
+	std::cout << "MELA: compute weights" << std::endl;
+	TUtil::PrintCandidateSummary(mela.getCurrentCandidate()); 
+        return weight;
+	std::cout << " " << std::endl;
+
+	mela.resetInputEvent();
    }
 
 

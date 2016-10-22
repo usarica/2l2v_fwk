@@ -14,6 +14,7 @@
 #include "Math/LorentzVector.h"
 #include "DataFormats/Math/interface/deltaR.h"
 #include "DataFormats/PatCandidates/interface/Jet.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
 typedef ROOT::Math::LorentzVector<ROOT::Math::PxPyPzE4D<double> > LorentzVector;
 
@@ -53,7 +54,8 @@ namespace higgs{
     //reweight the resonance
     TGraph* weightNarrowResonnance(bool isVBF, double mass, double Cprime, double BRnew, TFile *nrLineShapesFile, double& Norm, TString pf);
     TGraph* weightGGZZContinuum(TFile *nrLineShapesFile, double& Norm, TString pf);
-  
+
+    float weightNarrowResonnance_MELA( bool isVBF, double Cprime, double resonance, const reco::GenParticleCollection& genParticles);  
 
     //reweight to H125 interference
     double weightToH125Interference(double mass,double width,TFile *intFile,TString var); 
