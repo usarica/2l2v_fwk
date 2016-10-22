@@ -264,40 +264,6 @@ namespace higgs{
 	SM_Info[800]=304;   SM_Info[900]=499;   SM_Info[1000]=647;
 	SM_Info[1500]=1500; SM_Info[2000]=2000; SM_Info[2500]=2500;
 
-	std::map< double, TLorentzVector> Partons;
-	std::map< double, TLorentzVector> Higgs;
-	std::map< double, TLorentzVector> ZBoson;
-	std::map< double, TLorentzVector> FinalState;
-
-	//Loop on Gen_Particles to select 2L2nu final state
-	/*int iter1=0; int iter2=0;
-	for(unsigned int k=0; k<gen.size(); k++){ 
- 
-	    if( !gen[k].isHardProcess()) continue; 
-	    if( (gen[k].pdgId<7 || gen[k].pdgId==21) && gen[k].status() == 21 ){
-                iter1++;
-                double pdgId=0;
-                if(iter1==1){pdgId=21;}else if(iter1==2){pdgId=-21;}
-                TLorentzVector partons( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
-                Partons[pdgId] = partons;
-		std::cout << "Gluon: " << gen[k].px() << "; " << gen[k].py() << "; " << gen[k].pz() << "; " << gen[k].energy() << std::endl;
-            }else if( gen[k].pdgId() == 25 ){
-		TLorentzVector higgsP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy()); 
-		Higgs[gen[k].pdgId()] = higgsP;	
-	    } else if( abs(gen[k].pdgId()) == 23 ){
-		iter2++;
-		double pdgId=0;
-		if(iter2==1){pdgId=23;}else if(iter2==2){pdgId=-23;}
-		TLorentzVector zbosonP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
-		ZBoson[pdgId] = zbosonP;		
-	    } else if( abs(gen[k].pdgId()) == 11 || abs(gen[k].pdgId()) == 12 || abs(gen[k].pdgId()) == 13 || abs(gen[k].pdgId()) == 14 || abs(gen[k].pdgId()) == 15 || abs(gen[k].pdgId()) == 16 ){
-		TLorentzVector lepP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy()); 
-		FinalState[gen[k].pdgId()] = lepP;
-             std::cout << "Leptons: " << gen[k].px() << "; " << gen[k].py() << "; " << gen[k].pz() << "; " << gen[k].energy() << std::endl;
-	    }
- 
-	}*/
-
 	std::cout << " " << std::endl;
 	std::cout << "Cprime: " << CP << "; Width: " << SM_Info[heavyMass] << "; Narrow Width: " << SM_Info[heavyMass]*CP*CP << std::endl;
 	heavyWidth = SM_Info[heavyMass]*CP*CP;	
@@ -320,14 +286,6 @@ namespace higgs{
 
 	}
 	
-        /*for(std::map< double, TLorentzVector>::iterator it=Partons.begin(); it!=Partons.end(); ++it){
-                mothers.push_back( SimpleParticle_t( abs(it->first),it->second));
-        }
-
-	for(std::map< double, TLorentzVector>::iterator it=FinalState.begin(); it!=FinalState.end(); ++it){
-		daughters.push_back( SimpleParticle_t(it->first,it->second));
-	}*/
-
 	std::cout <<"MELA: setInputs" << std::endl;
         mela.setCandidateDecayMode(TVar::CandidateDecay_ZZ); //Mela Candidate mode initialized
 	mela.setInputEvent(&daughters, 0, &mothers, true); 
@@ -342,7 +300,7 @@ namespace higgs{
 	std::cout << "MELA: set Higgs Mass" << std::endl;
 	mela.setMelaHiggsMassWidth(-1,0,0);
         mela.setMelaHiggsMassWidth( 125, 4.07e-3, 0); //First resonance Initialization, SM Higgs
-        mela.setMelaHiggsMassWidth( heavyMass, heavyWidth, 0); //Second resonace (heavy one)
+        mela.setMelaHiggsMassWidth( heavyMass, heavyWidth, 1); //Second resonace Initialization, Heavy resonance 
 	mela.computeP( weight, false);
 	
 	std::cout << "MELA: compute weights" << std::endl;
