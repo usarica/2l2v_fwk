@@ -309,10 +309,10 @@ namespace higgs{
 	
 	std::cout << "MELA: compute weights" << std::endl;
 	TUtil::PrintCandidateSummary(mela.getCurrentCandidate()); 
-        return weight;
 	std::cout << " " << std::endl;
 
 	mela.resetInputEvent();
+  return weight;
    }
 
 
