@@ -253,7 +253,7 @@ namespace higgs{
       return nrGr;
    }
 
-   float weightNarrowResonnance_MELA( bool isVBF, double CP, double heavyMass, const reco::GenParticleCollection& gen){
+   float weightNarrowResonnance_MELA( Mela& mela, bool isVBF, double CP, double heavyMass, const reco::GenParticleCollection& gen){
 	
 	//Fill a Map with Mass and Width SM Like
 	double heavyWidth=0; float weight=0;
@@ -267,18 +267,23 @@ namespace higgs{
 	std::cout << " " << std::endl;
 	std::cout << "Cprime: " << CP << "; Width: " << SM_Info[heavyMass] << "; Narrow Width: " << SM_Info[heavyMass]*CP*CP << std::endl;
 	heavyWidth = SM_Info[heavyMass]*CP*CP;	
-        TVar::VerbosityLevel verbosity = TVar::DEBUG;
-	std::cout << "MELA: initialization" << std::endl;
-        Mela mela( 13, heavyMass, verbosity); //Mela is initialized (Energy, mPOLE, verobosity) 
+  // Turned off initialization here, should initialize once and then pass by reference
+  //      TVar::VerbosityLevel verbosity = TVar::DEBUG;
+	//std::cout << "MELA: initialization" << std::endl;
+  //      Mela mela( 13, heavyMass, verbosity); //Mela is initialized (Energy, mPOLE, verobosity) 
         SimpleParticleCollection_t daughters, mothers; // associated;
 
 	//Loop on particles and fill SimpleParticleCollection_t 
+  // Suggestion: Try to use LHE info rather than Pythia gen. info (I can provide code if you need them) -- U. Sarica
+  // Reason: Pythia gen. info is difficult to navigate for associated particles, you have to pick status==23 or 1 quarks/gluons and then disentangle them in case the same parton exists for both status 1 and 23.
+  //         If you look at LHE info, however, you will just have the partons from the hard process, which is what you need.
         for(unsigned int k=0; k<gen.size(); k++){
 
             if( !gen[k].isHardProcess()) continue;
-            if( (gen[k].pdgId()<7 || gen[k].pdgId()==21) && gen[k].status() == 21 ){
+            if( (abs(gen[k].pdgId())<7 || gen[k].pdgId()==21) && gen[k].status() == 21 ){
                 TLorentzVector partons( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
-		mothers.push_back( SimpleParticle_t( gen[k].pdgId(), partons)); //Filling Infos
+    if (abs(gen[k].pdgId())<7 && isVBF) mothers.push_back(SimpleParticle_t(gen[k].pdgId(), partons)); //Fill mothers with correct particle id if the process is VBF and the incoming parons are both q
+    else mothers.push_back(SimpleParticle_t(0, partons)); //Else fill gluons as 0 (unknown parton) in case the initial state is qg in ggF, or qg or gg in VBF
 	    } else if( abs(gen[k].pdgId()) == 11 || abs(gen[k].pdgId()) == 12 || abs(gen[k].pdgId()) == 13 || abs(gen[k].pdgId()) == 14 || abs(gen[k].pdgId()) == 15 || abs(gen[k].pdgId()) == 16 ){
 		TLorentzVector lepP( gen[k].px(), gen[k].py(), gen[k].pz(), gen[k].energy());
 		daughters.push_back( SimpleParticle_t( gen[k].pdgId(), lepP)); //Filling Infos
@@ -288,7 +293,7 @@ namespace higgs{
 	
 	std::cout <<"MELA: setInputs" << std::endl;
         mela.setCandidateDecayMode(TVar::CandidateDecay_ZZ); //Mela Candidate mode initialized
-	mela.setInputEvent(&daughters, 0, &mothers, true); 
+	mela.setInputEvent(&daughters, 0, &mothers, true); // Need to fix this 0 to associated particles; VBF case would never work by passing 0.
 	
 	if(!isVBF){
 	    //TVar::bkgZZ=to produce only Bckg, TVar::HSMHiggs=to produce only Signal, TVar::bkgZZ_SMHiggs=to produce both
@@ -298,7 +303,6 @@ namespace higgs{
 	}
 	
 	std::cout << "MELA: set Higgs Mass" << std::endl;
-	mela.setMelaHiggsMassWidth(-1,0,0);
         mela.setMelaHiggsMassWidth( 125, 4.07e-3, 0); //First resonance Initialization, SM Higgs
         mela.setMelaHiggsMassWidth( heavyMass, heavyWidth, 1); //Second resonace Initialization, Heavy resonance 
 	mela.computeP( weight, false);
